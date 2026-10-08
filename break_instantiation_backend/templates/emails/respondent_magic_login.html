@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+
+{% block title %}Your sign-in link{% endblock title %}
+
+{% block preheader %}Your sign-in link. It expires in {{ expires_in_display }}.{% endblock preheader %}
+
+{% block content %}
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">Hi,</p>
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">
+    Someone requested a sign-in link for your account. Use the button below to sign in.
+  </p>
+{% endblock content %}
+
+{% block button_label %}Sign in{% endblock button_label %}
+
+{% block after %}
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">
+    Requesting another link replaces this one. Only the most recent link will work.
+  </p>
+{% endblock after %}

@@ -1,7 +1,9 @@
 # ruff: noqa: ERA001, E501
 """Base settings to build other settings files upon."""
+
 import os
 import ssl
+from datetime import timedelta
 from pathlib import Path
 
 import environ
@@ -101,7 +103,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "break_instantiation_backend.users",
-    # Your stuff: custom apps go here
+    "break_instantiation_backend.respondents",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -335,9 +337,13 @@ ACCOUNT_ADAPTER = "break_instantiation_backend.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/account/forms.html
 ACCOUNT_FORMS = {"signup": "break_instantiation_backend.users.forms.UserSignupForm"}
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_ADAPTER = "break_instantiation_backend.users.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_ADAPTER = (
+    "break_instantiation_backend.users.adapters.SocialAccountAdapter"
+)
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
-SOCIALACCOUNT_FORMS = {"signup": "break_instantiation_backend.users.forms.UserSocialSignupForm"}
+SOCIALACCOUNT_FORMS = {
+    "signup": "break_instantiation_backend.users.forms.UserSocialSignupForm"
+}
 
 # django-rest-framework
 # -------------------------------------------------------------------------------
@@ -349,7 +355,25 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Applied only where a view sets throttle_classes. magic_login is per
+    # email; magic_login_ip stops one address spraying many inboxes.
+    "DEFAULT_THROTTLE_RATES": {
+        "magic_login": "5/hour",
+        "magic_login_ip": "20/hour",
+    },
 }
+
+# Respondent magic-link sign-in. Lifetimes match the BVI client portal.
+MAGIC_LOGIN_TOKEN_TTL = timedelta(minutes=15)
+RESPONDENT_SESSION_IDLE_TTL = timedelta(minutes=30)
+SESSION_SLIDE_THRESHOLD = timedelta(seconds=60)
+RESPONDENT_SESSION_COOKIE_NAME = "respondent_session"
+RESPONDENT_FRONTEND_URL = env(
+    "RESPONDENT_FRONTEND_URL",
+    default="http://localhost:3001",
+)
+RESPONDENT_EMAIL_WORDMARK = env("RESPONDENT_EMAIL_WORDMARK", default="Questionnaire")
+SECURITY_CONTACT_EMAIL = env("SECURITY_CONTACT_EMAIL", default="")
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
 CORS_URLS_REGEX = r"^/api/.*$"

@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block content %}Hi,
+
+Someone requested a sign-in link for your account. Open the link below to sign in.
+{% endblock content %}
+
+{% block button_label %}Sign in{% endblock button_label %}
+
+{% block after %}
+Requesting another link replaces this one. Only the most recent link will work.
+{% endblock after %}

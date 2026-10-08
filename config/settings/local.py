@@ -67,3 +67,16 @@ INSTALLED_APPS += ["django_extensions"]
 CELERY_TASK_EAGER_PROPAGATES = True
 # Your stuff...
 # ------------------------------------------------------------------------------
+# The gitignored playground (localhost:5173) proxies /api here. Logout
+# enforces CSRF, so the page has to read the cookie and send it back.
+CSRF_COOKIE_HTTPONLY = False
+# Origin check is what returned 403. Local only.
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+# Any http(s) origin. A bare "*" cannot be combined with cookies.
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGIN_REGEXES = [r"^https?://.*$"]

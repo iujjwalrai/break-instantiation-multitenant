@@ -1,0 +1,15 @@
+{% comment %}
+Plain-text part. Carries the whole link. A text-only client must still
+be able to sign in.
+{% endcomment %}{{ wordmark }}
+
+{% block content %}{% endblock content %}
+{% block button_label %}{% endblock button_label %}:
+{{ link }}
+
+This link expires in {{ expires_in_display }} and can only be used once.
+{% block after %}{% endblock after %}
+--
+{% if security_contact %}If you didn't request this, don't use the link -- contact {{ security_contact }} so it can be looked into.{% else %}If you didn't request this, don't use the link. It expires on its own and no change is made until someone follows it.{% endif %}
+
+Automated message. This mailbox isn't monitored, so please don't reply to it.

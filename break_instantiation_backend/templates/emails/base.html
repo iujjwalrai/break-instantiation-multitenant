@@ -1,0 +1,58 @@
+{% comment %}
+Shared layout for tokenized auth email. No remote image, no webfont,
+no tracking pixel. Tables and inline styles so the link still renders.
+{% endcomment %}<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="x-apple-disable-message-reformatting">
+    <meta name="color-scheme" content="light">
+    <meta name="supported-color-schemes" content="light">
+    <title>{% block title %}{{ wordmark }}{% endblock title %}</title>
+  </head>
+  <body style="width:100%!important;margin:0;padding:0;background-color:#ffffff;color:#1f1a15">
+    <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">
+      {% block preheader %}{% endblock preheader %}
+    </div>
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;background-color:#ffffff">
+      <tr>
+        <td align="center" style="padding:32px">
+          <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:600px;max-width:100%;font-size:15px;border-collapse:collapse">
+            <tr>
+              <td style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;line-height:20px;color:#1f1a15">
+                <p style="margin:0 0 24px;font-size:20px;line-height:24px;font-weight:700;letter-spacing:0.06em">{{ wordmark }}</p>
+                {% block content %}{% endblock content %}
+                <table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:separate;margin:0 0 14px">
+                  <tr>
+                    <td align="center" bgcolor="#cca077" style="border-radius:6px;background-color:#cca077">
+                      <a href="{{ link }}" style="display:inline-block;height:40px;line-height:40px;padding:0 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;font-size:15px;font-weight:600;color:#1f1a15;text-decoration:none">{% block button_label %}{% endblock button_label %}</a>
+                    </td>
+                  </tr>
+                </table>
+                <p style="margin-top:1.5em;margin-bottom:0.5em;line-height:20px;color:#6b6259">
+                  If the button doesn't work, copy and paste this address into your browser:
+                </p>
+                <p style="margin-top:0;margin-bottom:1.5em;line-height:20px;word-break:break-all">
+                  <a href="{{ link }}" style="color:#8a5f33;text-decoration:underline">{{ link }}</a>
+                </p>
+                <p style="margin-bottom:1.5em;margin-top:1.5em;line-height:20px">
+                  This link expires in {{ expires_in_display }} and can only be used once.
+                </p>
+                {% block after %}{% endblock after %}
+                <p style="margin:24px 0 0;padding-top:24px;border-top:1px solid #e8e1d8;font-size:13px;line-height:18px;color:#6b6259">
+                  {% if security_contact %}
+                    If you didn't request this, don't use the link. Contact {{ security_contact }} so it can be looked into.
+                  {% else %}
+                    If you didn't request this, don't use the link. It expires on its own and no change is made until someone follows it.
+                  {% endif %}
+                  Automated message. This mailbox isn't monitored, so please don't reply to it.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

@@ -271,6 +271,12 @@ dump.rdb
 ### Project template
 break_instantiation_backend/media/
 
+# Local agent notes: BVI reference and the working checklist.
+.cursor/
+
+# Local respondent-auth playground. Not part of the product.
+# respondent-playground/
+
 .pytest_cache/
 .ipython/
 .env
