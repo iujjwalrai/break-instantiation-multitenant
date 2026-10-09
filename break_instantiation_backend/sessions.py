@@ -1,4 +1,4 @@
-"""Session lookup errors shared by respondent sessions.
+"""Session lookup errors shared by client sessions.
 
 Sessions are multi-use (`revoked_at`, not `used`), so they do not inherit
 `TokenBase` and do not reuse `TokenError`.

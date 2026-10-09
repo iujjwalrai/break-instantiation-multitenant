@@ -103,7 +103,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     "break_instantiation_backend.users",
-    "break_instantiation_backend.respondents",
+    "break_instantiation_backend.clients",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -342,7 +342,7 @@ SOCIALACCOUNT_ADAPTER = (
 )
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_FORMS = {
-    "signup": "break_instantiation_backend.users.forms.UserSocialSignupForm"
+    "signup": "break_instantiation_backend.users.forms.UserSocialSignupForm",
 }
 
 # django-rest-framework
@@ -363,16 +363,13 @@ REST_FRAMEWORK = {
     },
 }
 
-# Respondent magic-link sign-in. Lifetimes match the BVI client portal.
+# Client portal sign-in. Lifetimes match the BVI client portal.
 MAGIC_LOGIN_TOKEN_TTL = timedelta(minutes=15)
-RESPONDENT_SESSION_IDLE_TTL = timedelta(minutes=30)
+CLIENT_PORTAL_INVITE_TTL = timedelta(days=7)
+CLIENT_SESSION_IDLE_TTL = timedelta(minutes=30)
 SESSION_SLIDE_THRESHOLD = timedelta(seconds=60)
-RESPONDENT_SESSION_COOKIE_NAME = "respondent_session"
-RESPONDENT_FRONTEND_URL = env(
-    "RESPONDENT_FRONTEND_URL",
-    default="http://localhost:3001",
-)
-RESPONDENT_EMAIL_WORDMARK = env("RESPONDENT_EMAIL_WORDMARK", default="Questionnaire")
+CLIENT_SESSION_COOKIE_NAME = "client_session"
+CLIENT_EMAIL_WORDMARK = env("CLIENT_EMAIL_WORDMARK", default="Questionnaire")
 SECURITY_CONTACT_EMAIL = env("SECURITY_CONTACT_EMAIL", default="")
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup

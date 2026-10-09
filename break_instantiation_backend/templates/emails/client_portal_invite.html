@@ -1,0 +1,20 @@
+{% extends "emails/base.html" %}
+
+{% block title %}You've been invited{% endblock title %}
+
+{% block preheader %}Your invitation. It expires in {{ expires_in_display }}.{% endblock preheader %}
+
+{% block content %}
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">Hi,</p>
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">
+    You've been invited. Use the button below to activate your account.
+  </p>
+{% endblock content %}
+
+{% block button_label %}Activate my account{% endblock button_label %}
+
+{% block after %}
+  <p style="margin-bottom:1.5em;margin-top:0;line-height:20px">
+    Your access isn't active until you follow the link above.
+  </p>
+{% endblock after %}

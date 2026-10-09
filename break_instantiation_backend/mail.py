@@ -53,7 +53,7 @@ def send_action_email(
         "link": link,
         "expires_in_display": humanize_ttl(expires_in),
         "security_contact": settings.SECURITY_CONTACT_EMAIL,
-        "wordmark": settings.RESPONDENT_EMAIL_WORDMARK,
+        "wordmark": settings.CLIENT_EMAIL_WORDMARK,
     }
     message = EmailMultiAlternatives(
         subject=subject,

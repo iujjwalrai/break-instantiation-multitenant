@@ -14,8 +14,10 @@ router.register("users", UserViewSet)
 app_name = "api"
 urlpatterns = [
     path(
-        "respondents/auth/",
-        include("break_instantiation_backend.respondents.api.auth.urls"),
+        "clients/auth/",
+        include("break_instantiation_backend.clients.api.auth.urls"),
     ),
+    path("clients/", include("break_instantiation_backend.clients.api.urls")),
+    path("staff/", include("break_instantiation_backend.users.api.staff_urls")),
     *router.urls,
 ]

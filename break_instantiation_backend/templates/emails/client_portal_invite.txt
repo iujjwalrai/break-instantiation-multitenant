@@ -1,0 +1,12 @@
+{% extends "emails/base.txt" %}
+
+{% block content %}Hi,
+
+You've been invited. Open the link below to activate your account.
+{% endblock content %}
+
+{% block button_label %}Activate my account{% endblock button_label %}
+
+{% block after %}
+Your access isn't active until you follow the link above.
+{% endblock after %}

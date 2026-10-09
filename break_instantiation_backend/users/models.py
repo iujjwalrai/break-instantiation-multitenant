@@ -1,4 +1,3 @@
-
 from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
@@ -8,6 +7,7 @@ from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 
 from .managers import UserManager
+from .roles import StaffRole
 
 
 class User(AbstractUser):
@@ -23,6 +23,14 @@ class User(AbstractUser):
     last_name = None  # type: ignore[assignment]
     email = EmailField(_("email address"), unique=True)
     username = None  # type: ignore[assignment]
+    # Blank means no product role. `is_superuser` still counts as super admin.
+    role = CharField(
+        _("role"),
+        max_length=32,
+        choices=StaffRole.choices,
+        blank=True,
+        default="",
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
