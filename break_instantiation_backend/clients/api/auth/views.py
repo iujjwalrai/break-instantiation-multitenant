@@ -15,7 +15,6 @@ from break_instantiation_backend.clients.authentication import (
     ClientSessionAuthentication,
 )
 from break_instantiation_backend.clients.models import ClientUser
-from break_instantiation_backend.clients.origin import caller_origin
 from break_instantiation_backend.clients.services import issue_magic_login
 from break_instantiation_backend.clients.services import redeem_magic_login
 from break_instantiation_backend.clients.services import redeem_portal_invite
@@ -123,10 +122,8 @@ class MagicLoginRequestView(APIView):
             disabled_at__isnull=True,
         ).first()
         if client_user is not None:
-            origin = caller_origin(request)
-            if origin is not None:
-                _token, raw_token = issue_magic_login(client_user=client_user)
-                send_magic_login_email.delay(client_user.email, raw_token, origin)
+            _token, raw_token = issue_magic_login(client_user=client_user)
+            send_magic_login_email.delay(client_user.email, raw_token)
 
         return Response(_GENERIC_MAGIC_LOGIN_RESPONSE)
 

@@ -23,7 +23,8 @@ class User(AbstractUser):
     last_name = None  # type: ignore[assignment]
     email = EmailField(_("email address"), unique=True)
     username = None  # type: ignore[assignment]
-    # Blank means no product role. `is_superuser` still counts as super admin.
+    # Blank means no product role. `is_superuser` with no tenant role counts
+    # as backend admin, not as a child super admin.
     role = CharField(
         _("role"),
         max_length=32,

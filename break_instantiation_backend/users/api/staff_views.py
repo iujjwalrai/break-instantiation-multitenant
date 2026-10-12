@@ -14,15 +14,21 @@ from rest_framework.views import APIView
 
 from break_instantiation_backend.users.models import User
 from break_instantiation_backend.users.roles import StaffRole
-from break_instantiation_backend.users.roles import is_staff_member
+from break_instantiation_backend.users.roles import can_sign_in
+from break_instantiation_backend.users.roles import is_backend_admin
 from break_instantiation_backend.users.roles import is_super_admin
 
-from .permissions import IsStaffMember
+from .permissions import CanSignIn
 from .permissions import IsSuperAdmin
 
 
 def staff_payload(user: User) -> dict:
-    role = StaffRole.SUPER_ADMIN if is_super_admin(user) else user.role
+    if is_backend_admin(user):
+        role = StaffRole.BACKEND_ADMIN
+    elif is_super_admin(user):
+        role = StaffRole.SUPER_ADMIN
+    else:
+        role = user.role
     return {
         "id": user.id,
         "email": user.email,
@@ -70,7 +76,7 @@ class StaffLoginView(APIView):
             email=serializer.validated_data["email"],
             password=serializer.validated_data["password"],
         )
-        if user is None or not is_staff_member(user):
+        if user is None or not can_sign_in(user):
             return Response(
                 {"detail": "Invalid email or password."},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -91,7 +97,7 @@ class StaffLogoutView(APIView):
 
 class StaffMeView(APIView):
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, IsStaffMember]
+    permission_classes = [IsAuthenticated, CanSignIn]
 
     def get(self, request):
         return Response(staff_payload(request.user))

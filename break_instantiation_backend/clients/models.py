@@ -49,10 +49,14 @@ class ClientUser(TimeStampedModel):
 
 
 class Client(TimeStampedModel):
-    """Profile staff create before a login exists.
+    """Profile an admin creates before a login exists.
 
     `email` is the address the invite is sent to. `ClientUser.email` is
     copied from it at redemption and may diverge later.
+
+    `admin` is the child admin responsible for this profile. It is a real
+    foreign key to that child's `users.User` row. A backend admin is not
+    a tenant user and is never stored here.
     """
 
     id = UUIDField(primary_key=True, default=uuid4, editable=False)
@@ -98,7 +102,11 @@ class ClientPortalInviteStatus(TextChoices):
 
 
 class ClientPortalInvite(TokenBase):
-    """One-time link that creates the `ClientUser` on redemption."""
+    """One-time link that creates the `ClientUser` on redemption.
+
+    `invited_by` is the child admin or super admin who sent it, a foreign
+    key to the user row in that same child.
+    """
 
     invited_email = EmailField(_("invited email"))
     invited_by = ForeignKey(

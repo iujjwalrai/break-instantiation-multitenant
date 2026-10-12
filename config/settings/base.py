@@ -369,6 +369,12 @@ CLIENT_PORTAL_INVITE_TTL = timedelta(days=7)
 CLIENT_SESSION_IDLE_TTL = timedelta(minutes=30)
 SESSION_SLIDE_THRESHOLD = timedelta(seconds=60)
 CLIENT_SESSION_COOKIE_NAME = "client_session"
+# Customer app, not this API and not the staff page that triggered the mail.
+# Local default is the customer dev server. Tenant host comes later.
+CLIENT_PORTAL_FRONTEND_URL = env(
+    "CLIENT_PORTAL_FRONTEND_URL",
+    default="http://localhost:3001",
+)
 CLIENT_EMAIL_WORDMARK = env("CLIENT_EMAIL_WORDMARK", default="Questionnaire")
 SECURITY_CONTACT_EMAIL = env("SECURITY_CONTACT_EMAIL", default="")
 

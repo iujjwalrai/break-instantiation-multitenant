@@ -12,10 +12,9 @@ from rest_framework.viewsets import GenericViewSet
 
 from break_instantiation_backend.clients.models import Client
 from break_instantiation_backend.clients.models import ClientPortalInvite
-from break_instantiation_backend.clients.origin import caller_origin
 from break_instantiation_backend.clients.services import issue_portal_invite
 from break_instantiation_backend.clients.tasks import send_portal_invite_email
-from break_instantiation_backend.users.api.permissions import IsStaffMember
+from break_instantiation_backend.users.api.permissions import IsTenantStaff
 from break_instantiation_backend.users.models import User
 from break_instantiation_backend.users.roles import is_super_admin
 
@@ -36,7 +35,7 @@ class ClientViewSet(
     """
 
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, IsStaffMember]
+    permission_classes = [IsAuthenticated, IsTenantStaff]
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
 
@@ -80,15 +79,12 @@ class ClientViewSet(
             raise ValidationError(
                 {"detail": "This client already has portal access."},
             )
-        origin = caller_origin(request)
-        if origin is None:
-            raise ValidationError({"detail": "Origin header is required."})
         assert isinstance(request.user, User)
         _invite, raw_token = issue_portal_invite(
             target_client=client,
             invited_by=request.user,
         )
-        send_portal_invite_email.delay(client.email, raw_token, origin)
+        send_portal_invite_email.delay(client.email, raw_token)
         return Response(
             {"detail": "Invitation sent."},
             status=status.HTTP_202_ACCEPTED,

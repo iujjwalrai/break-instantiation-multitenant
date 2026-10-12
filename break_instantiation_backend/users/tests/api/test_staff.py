@@ -75,6 +75,41 @@ def test_super_admin_creates_an_admin(client):
     assert created.check_password(PASSWORD)
 
 
+def test_superuser_flag_signs_in_as_backend_admin(client):
+    backend_admin = UserFactory.create(is_superuser=True, password=PASSWORD)
+
+    response = _post(
+        client,
+        "api:staff:login",
+        {"email": backend_admin.email, "password": PASSWORD},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()["role"] == StaffRole.BACKEND_ADMIN
+    clients = client.get(reverse("api:client-list"))
+    assert clients.status_code == HTTPStatus.FORBIDDEN
+
+
+def test_backend_admin_cannot_create_an_admin(client):
+    backend_admin = UserFactory.create(
+        role=StaffRole.BACKEND_ADMIN,
+        password=PASSWORD,
+    )
+    client.force_login(backend_admin)
+
+    response = _post(
+        client,
+        "api:staff:admins",
+        {
+            "email": "other@example.com",
+            "password": PASSWORD,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert not User.objects.filter(email="other@example.com").exists()
+
+
 def test_admin_cannot_create_an_admin(client):
     admin = UserFactory.create(role=StaffRole.ADMIN, password=PASSWORD)
     client.force_login(admin)

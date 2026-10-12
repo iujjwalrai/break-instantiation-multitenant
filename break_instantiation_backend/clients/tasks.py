@@ -10,10 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task()
-def send_portal_invite_email(to_email: str, raw_token: str, base_url: str) -> None:
+def send_portal_invite_email(to_email: str, raw_token: str) -> None:
     """Email the link that creates a `ClientUser`. Never log `raw_token`."""
     link = build_action_link(
-        base_url=base_url,
+        base_url=settings.CLIENT_PORTAL_FRONTEND_URL,
         path="/invite",
         raw_token=raw_token,
     )
@@ -32,10 +32,10 @@ def send_portal_invite_email(to_email: str, raw_token: str, base_url: str) -> No
 
 
 @shared_task()
-def send_magic_login_email(to_email: str, raw_token: str, base_url: str) -> None:
+def send_magic_login_email(to_email: str, raw_token: str) -> None:
     """Email a sign-in link for an existing `ClientUser`. Never log `raw_token`."""
     link = build_action_link(
-        base_url=base_url,
+        base_url=settings.CLIENT_PORTAL_FRONTEND_URL,
         path="/magic-login",
         raw_token=raw_token,
     )

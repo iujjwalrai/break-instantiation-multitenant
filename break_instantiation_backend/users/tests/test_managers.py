@@ -4,6 +4,7 @@ import pytest
 from django.core.management import call_command
 
 from break_instantiation_backend.users.models import User
+from break_instantiation_backend.users.roles import StaffRole
 
 
 @pytest.mark.django_db
@@ -27,6 +28,7 @@ class TestUserManager:
         assert user.email == "admin@example.com"
         assert user.is_staff
         assert user.is_superuser
+        assert user.role == StaffRole.BACKEND_ADMIN
         assert user.username is None
 
     def test_create_superuser_username_ignored(self):

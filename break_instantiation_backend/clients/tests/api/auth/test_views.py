@@ -99,7 +99,7 @@ class TestMagicLoginRequestView:
         link = next(
             line
             for line in mailoutbox[0].body.splitlines()
-            if line.startswith("https://child.example.com/magic-login?")
+            if line.startswith("http://localhost:3001/magic-login?")
         )
         raw_token = parse_qs(urlparse(link).query)["token"][0]
         redeem = _post(
@@ -277,7 +277,7 @@ class TestPortalInvite:
         link = next(
             line
             for line in mailoutbox[0].body.splitlines()
-            if line.startswith("http://localhost:5173/invite?")
+            if line.startswith("http://localhost:3001/invite?")
         )
         raw_token = parse_qs(urlparse(link).query)["token"][0]
 
