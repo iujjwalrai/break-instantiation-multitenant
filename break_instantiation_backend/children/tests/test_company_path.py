@@ -97,3 +97,20 @@ def test_company_path_works_through_the_asgi_handler():
 
     assert response.status_code == HTTPStatus.OK
     assert response.json()["name"] == "EJ"
+
+
+def test_company_list_on_the_public_host_shows_live_companies():
+    response = HttpClient(headers={"host": "localhost"}).get("/api/companies/")
+
+    assert response.status_code == HTTPStatus.OK
+    rows = {row["slug"]: row["name"] for row in response.json()}
+    assert rows["ej"] == "EJ"
+    assert rows["break"] == "Break"
+    assert "draft" not in rows
+    assert "public" not in rows
+
+
+def test_company_list_is_not_served_inside_a_company():
+    response = HttpClient(headers={"host": "localhost"}).get("/t/ej/api/companies/")
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
