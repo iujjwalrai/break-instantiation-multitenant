@@ -66,8 +66,6 @@ else:
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
 DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
-# https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-DEFAULT_AUTO_FIELD
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # django-tenants. `public` is the control store. Each child is a schema.
 TENANT_MODEL = "children.Child"

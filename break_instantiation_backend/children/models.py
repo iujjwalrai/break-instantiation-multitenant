@@ -31,7 +31,7 @@ class Child(TenantMixin):
     status = CharField(
         _("status"),
         max_length=16,
-        choices=ChildStatus.choices,
+        choices=ChildStatus,
         default=ChildStatus.DRAFT,
     )
     look = JSONField(

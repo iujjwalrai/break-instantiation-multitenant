@@ -22,10 +22,7 @@ DEV_PASSWORD = "test"  # noqa: S105
 # Same five paragraphs as the BVI consent screen. `{company}` is the child
 # name, so each company stores the wording its own clients are shown.
 CONSENT_TEXT = (
-    Path(__file__).resolve().parents[3]
-    / "questionnaires"
-    / "seed"
-    / "consent_v1.txt"
+    Path(__file__).resolve().parents[3] / "questionnaires" / "seed" / "consent_v1.txt"
 )
 CONSENT_VERSION = "v1"
 

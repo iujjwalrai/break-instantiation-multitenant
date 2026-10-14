@@ -95,7 +95,7 @@ class TestUserAdmin:
                 "root-public@example.com",
                 "My_R@ndom-P@ssw0rd",
             )
-            http = Client(HTTP_HOST="public.test")
+            http = Client(headers={"host": "public.test"})
             http.force_login(root)
             response = http.get(reverse("admin:index"))
             assert response.status_code == HTTPStatus.OK
