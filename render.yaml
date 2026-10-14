@@ -2,7 +2,7 @@
 # Postgres is on Neon, so this is the only Render service.
 services:
   - type: web
-    name: break-instantiation-backend
+    name: break-instantiation-multitenant
     runtime: docker
     plan: free
     # Keep it close to the Neon region to cut query latency.
