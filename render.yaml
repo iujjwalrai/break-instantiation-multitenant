@@ -1,0 +1,46 @@
+# Render blueprint for the demo deploy. Settings: config/settings/render.py
+# Postgres is on Neon, so this is the only Render service.
+services:
+  - type: web
+    name: break-instantiation-backend
+    runtime: docker
+    plan: free
+    # Keep it close to the Neon region to cut query latency.
+    region: oregon
+    dockerfilePath: ./compose/production/django/Dockerfile
+    dockerContext: .
+    dockerCommand: /app/compose/render/start
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.render
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      # Two workers fit the free plan's 512 MB.
+      - key: WEB_CONCURRENCY
+        value: "2"
+      # Neon direct (not pooled) connection string, with ?sslmode=require
+      - key: DATABASE_URL
+        sync: false
+      # Password for every seeded staff login. Blank skips seeding.
+      - key: DJANGO_DEMO_PASSWORD
+        sync: false
+      # One company on this service's onrender.com host: its customer portal
+      # URL. Magic login and invite links point here.
+      - key: DJANGO_DEMO_CLIENT_SITE_URL
+        sync: false
+      # Several companies instead: a JSON list, each with its own API host
+      # pointed at this service. Overrides the one-company default.
+      # [{"schema_name": "ej", "name": "EJ", "domain": "ej-api.example.com",
+      #   "client_site_url": "https://ej-portal.vercel.app"}]
+      - key: DJANGO_DEMO_CHILDREN
+        sync: false
+      # Comma separated. The admin's CLIENT_PORTAL_ORIGIN and portal's APP_URL.
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        sync: false
+      # Brevo SMTP: smtp+tls://<login>:<smtp key>@smtp-relay.brevo.com:587
+      # URL-encode special characters. Blank logs mail instead of sending.
+      - key: DJANGO_EMAIL_URL
+        sync: false
+      # A sender verified in Brevo, e.g. Questionnaire <noreply@example.com>
+      - key: DJANGO_DEFAULT_FROM_EMAIL
+        sync: false
