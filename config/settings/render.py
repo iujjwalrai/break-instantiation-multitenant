@@ -8,6 +8,7 @@ lives in Postgres and WhiteNoise serves static files. EC2 stays on
 from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import MIDDLEWARE
+from .base import TENANT_PUBLIC_HOSTS
 from .base import env
 
 # GENERAL
@@ -15,16 +16,12 @@ from .base import env
 DEBUG = False
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 # Render sets RENDER_EXTERNAL_HOSTNAME to the service's onrender.com host.
-# The tenant middleware picks a company from the host, so every company's
-# API host from DJANGO_DEMO_CHILDREN is allowed too. Same list seed_demo reads.
+# Companies live under /t/<slug>/ on it, and its root is the public admin.
 ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-for _child in env.json("DJANGO_DEMO_CHILDREN", default=[]):
-    ALLOWED_HOSTS += _child.get("domains") or (
-        [_child["domain"]] if _child.get("domain") else []
-    )
+    TENANT_PUBLIC_HOSTS = [*TENANT_PUBLIC_HOSTS, RENDER_EXTERNAL_HOSTNAME]
 
 # DATABASES
 # ------------------------------------------------------------------------------

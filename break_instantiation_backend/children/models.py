@@ -82,11 +82,14 @@ class Child(TenantMixin):
 
 
 class ChildDomain(DomainMixin):
-    """Host header that selects a child. An unknown host matches no row."""
+    """What selects a child: a path slug (/t/ej/) or a host (ej.localhost).
+
+    A slug has no dots, so it never matches a host. Unknown values match no row.
+    """
 
     class Meta:
-        verbose_name = _("Child address")
-        verbose_name_plural = _("Child addresses")
+        verbose_name = _("Child path or host")
+        verbose_name_plural = _("Child paths and hosts")
 
     def __str__(self) -> str:
         return self.domain

@@ -31,7 +31,7 @@ CHILDREN = (
         "schema_name": "ej",
         "name": "EJ",
         "domain": "ej.localhost",
-        "client_site_url": "http://ej.localhost:3001",
+        "client_site_url": "http://localhost:3001/ej",
         "look": {
             "name": "EJ",
             "logo": "",
@@ -49,7 +49,7 @@ CHILDREN = (
         "schema_name": "break",
         "name": "Break",
         "domain": "break.localhost",
-        "client_site_url": "http://break.localhost:3001",
+        "client_site_url": "http://localhost:3001/break",
         "look": {
             "name": "Break",
             "logo": "",
@@ -85,10 +85,10 @@ class Command(BaseCommand):
         )
         self.stdout.write(
             "Same login opens one company: "
-            "http://ej.localhost:8000/admin/ and http://break.localhost:8000/admin/",
+            "http://localhost:8000/t/ej/admin/ and http://localhost:8000/t/break/admin/",
         )
         self.stdout.write(
-            "Client sites: http://ej.localhost:3001 and http://break.localhost:3001",
+            "Client sites: http://localhost:3001/ej and http://localhost:3001/break",
         )
 
 
@@ -126,6 +126,11 @@ def _ensure_child(spec: dict) -> None:
         ChildDomain.objects.get_or_create(
             domain=spec["domain"],
             defaults={"tenant": child, "is_primary": True},
+        )
+        # The path slug: /t/ej/ on any host, which is what the frontends call.
+        ChildDomain.objects.get_or_create(
+            domain=spec["schema_name"],
+            defaults={"tenant": child, "is_primary": False},
         )
     with schema_context(spec["schema_name"]):
         admin = User.objects.filter(email=spec["admin_email"]).first()

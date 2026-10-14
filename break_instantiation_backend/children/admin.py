@@ -4,6 +4,7 @@ from django.db.utils import ProgrammingError
 from django.utils.html import format_html
 from django.utils.html import format_html_join
 from django_tenants.utils import get_public_schema_name
+from django_tenants.utils import get_subfolder_prefix
 from django_tenants.utils import schema_context
 
 from break_instantiation_backend.clients.models import Client
@@ -127,10 +128,20 @@ class ChildAdmin(PublicOnlyAdmin):
     def company_admin_link(self, obj: Child | None):
         if obj is None or not obj.pk:
             return "Save the company, then this links to its tables."
+        request = getattr(self, "_request", None)
+        # A path slug works on whatever host this admin is on.
+        slug = (
+            obj.domains.exclude(domain__contains=".")
+            .values_list("domain", flat=True)
+            .first()
+        )
+        if slug:
+            path = f"/{get_subfolder_prefix()}/{slug}/admin/"
+            url = request.build_absolute_uri(path) if request is not None else path
+            return format_html('<a href="{}">{}</a>', url, url)
         domain = obj.domains.filter(is_primary=True).first() or obj.domains.first()
         if domain is None:
             return "This company has no address yet."
-        request = getattr(self, "_request", None)
         host = domain.domain
         if request is not None and request.get_port() not in {"80", "443"}:
             host = f"{host}:{request.get_port()}"

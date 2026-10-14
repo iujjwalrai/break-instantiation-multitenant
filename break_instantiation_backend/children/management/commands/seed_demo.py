@@ -13,12 +13,14 @@ from typing import Any
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django_tenants.utils import get_public_schema_name
+from django_tenants.utils import get_subfolder_prefix
 from django_tenants.utils import schema_context
 
 from break_instantiation_backend.children.look import validate_look
 from break_instantiation_backend.children.management.commands.seed_local_children import (  # noqa: E501
     _ensure_consent,
 )
+from break_instantiation_backend.children.middleware import SLUG_PATTERN
 from break_instantiation_backend.children.models import Child
 from break_instantiation_backend.children.models import ChildDomain
 from break_instantiation_backend.children.models import ChildStatus
@@ -36,13 +38,14 @@ CLIENTS = (
 )
 
 
-def parse_children(raw: str, default_domain: str, default_site: str) -> list[dict]:
-    """`DJANGO_DEMO_CHILDREN` JSON, or one company on the Render host.
+def parse_children(raw: str, default_site: str) -> list[dict]:
+    """`DJANGO_DEMO_CHILDREN` JSON, or one company called Demo.
 
-    Each entry: schema_name, name, client_site_url (the customer portal),
-    and its addresses as `domains` (a list) or `domain` (one). An address
-    is an API host or a frontend host that sends X-Company-Host. Optional:
-    admin_email, and look (name, logo, favicon, title, description, colors).
+    Each entry: schema_name, name, client_site_url (the customer portal,
+    including the company path, e.g. https://portal.example.com/ej).
+    Optional: `domains`, the path slugs or hosts that select it (default:
+    the schema name, so /t/<schema_name>/), admin_email, and look (name,
+    logo, favicon, title, description, colors).
     """
     if raw.strip():
         try:
@@ -50,29 +53,21 @@ def parse_children(raw: str, default_domain: str, default_site: str) -> list[dic
         except json.JSONDecodeError as exc:
             msg = f"DJANGO_DEMO_CHILDREN is not valid JSON: {exc}"
             raise CommandError(msg) from exc
-    elif default_domain:
-        children = [
-            {
-                "schema_name": "demo",
-                "name": "Demo",
-                "domain": default_domain,
-                "client_site_url": default_site,
-            },
-        ]
     else:
-        msg = "Set DJANGO_DEMO_CHILDREN, or RENDER_EXTERNAL_HOSTNAME for one company."
-        raise CommandError(msg)
+        children = [
+            {"schema_name": "demo", "name": "Demo", "client_site_url": default_site},
+        ]
 
     required = ("schema_name", "name", "client_site_url")
     for child in children:
-        child["domains"] = _domains(child)
-        missing = [key for key in (*required, "domains") if not child.get(key)]
+        missing = [key for key in required if not child.get(key)]
         if missing:
             msg = f"Demo company {child} is missing {', '.join(missing)}."
             raise CommandError(msg)
         if child["schema_name"] == get_public_schema_name():
             msg = "A demo company cannot use the public schema."
             raise CommandError(msg)
+        child["domains"] = _domains(child)
         look = child.get("look") or {}
         errors = validate_look(look)
         if errors:
@@ -83,11 +78,16 @@ def parse_children(raw: str, default_domain: str, default_site: str) -> list[dic
 
 
 def _domains(child: dict) -> list[str]:
-    raw = child.get("domains") or ([child["domain"]] if child.get("domain") else [])
+    raw = child.get("domains") or [child["schema_name"]]
     if not isinstance(raw, list) or not all(isinstance(d, str) for d in raw):
-        msg = f"Demo company {child.get('name')} domains must be a list of hosts."
+        msg = f"Demo company {child['name']} domains must be a list of strings."
         raise CommandError(msg)
-    return [d.strip().lower() for d in raw if d.strip()]
+    domains = [d.strip().lower() for d in raw if d.strip()]
+    bad = [d for d in domains if "." not in d and not SLUG_PATTERN.match(d)]
+    if bad:
+        msg = f"Demo company {child['name']} has bad path slugs: {', '.join(bad)}."
+        raise CommandError(msg)
+    return domains
 
 
 class Command(BaseCommand):
@@ -119,7 +119,6 @@ class Command(BaseCommand):
             raise CommandError(msg)
         children = parse_children(
             options["children"],
-            default_domain=os.environ.get("RENDER_EXTERNAL_HOSTNAME", ""),
             default_site=os.environ.get("DJANGO_DEMO_CLIENT_SITE_URL", ""),
         )
 
@@ -127,12 +126,17 @@ class Command(BaseCommand):
         for spec in children:
             _ensure_child(spec, password)
             self.stdout.write(
-                f"{spec['name']}: addresses {', '.join(spec['domains'])}, "
+                f"{spec['name']}: paths {', '.join(_paths(spec['domains']))}, "
                 f"admin {_admin_email(spec)}",
             )
         self.stdout.write(
             self.style.SUCCESS(f"Seeded {len(children)} demo companies."),
         )
+
+
+def _paths(domains: list[str]) -> list[str]:
+    prefix = get_subfolder_prefix()
+    return [domain if "." in domain else f"/{prefix}/{domain}/" for domain in domains]
 
 
 def _admin_email(spec: dict) -> str:

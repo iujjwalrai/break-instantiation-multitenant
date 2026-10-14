@@ -62,6 +62,12 @@ def django_db_setup(django_db_setup, django_db_blocker):
                 domain=domain,
                 defaults={"tenant": tenant, "is_primary": True},
             )
+            if create_schema:
+                # The path slug: /t/<schema_name>/ on any host.
+                domain_model.objects.get_or_create(
+                    domain=schema_name,
+                    defaults={"tenant": tenant, "is_primary": False},
+                )
         connection.set_schema_to_public()
 
 

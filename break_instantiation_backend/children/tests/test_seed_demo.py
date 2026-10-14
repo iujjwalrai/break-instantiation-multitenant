@@ -24,8 +24,7 @@ PASSWORD = "demo-r@nd0m-pass"  # noqa: S105
 EJ = {
     "schema_name": "ej",
     "name": "EJ",
-    "domain": "ej-api.example.com",
-    "client_site_url": "https://ej-portal.example.com",
+    "client_site_url": "https://portal.example.com/ej",
 }
 
 
@@ -42,8 +41,9 @@ def test_seeds_backend_admin_company_admin_clients_and_consent():
         assert backend.role == StaffRole.BACKEND_ADMIN
         assert is_backend_admin(backend)
         ej = Child.objects.get(schema_name="ej")
-        assert ej.client_site_url == "https://ej-portal.example.com"
-        assert ChildDomain.objects.get(domain="ej-api.example.com").tenant == ej
+        assert ej.client_site_url == "https://portal.example.com/ej"
+        # The slug defaults to the schema name: /t/ej/.
+        assert ChildDomain.objects.get(domain="ej").tenant == ej
 
     with schema_context("ej"):
         admin = authenticate(email="admin@ej.example.com", password=PASSWORD)
@@ -75,7 +75,7 @@ def test_rerun_resets_passwords_and_keeps_demo_changes():
             is not None
         )
     with schema_context("public"):
-        assert ChildDomain.objects.filter(domain="ej-api.example.com").count() == 1
+        assert ChildDomain.objects.filter(domain="ej").count() == 1
 
 
 def test_creates_a_new_company_schema():
@@ -83,7 +83,6 @@ def test_creates_a_new_company_schema():
         {
             "schema_name": "acmedemo",
             "name": "Acme Demo",
-            "domain": "acme-api.example.com",
             "client_site_url": "https://acme-portal.example.com",
             "admin_email": "owner@acme.example.com",
         },
@@ -99,7 +98,7 @@ def test_creates_a_new_company_schema():
 
 def test_refuses_a_domain_owned_by_another_company():
     with pytest.raises(CommandError, match="another company"):
-        _seed({**EJ, "domain": "break.test"})
+        _seed({**EJ, "domains": ["break"]})
 
 
 def test_requires_password():
@@ -107,30 +106,24 @@ def test_requires_password():
         _seed(EJ, password="")
 
 
-def test_default_is_one_company_on_the_render_host():
-    children = parse_children(
-        "",
-        default_domain="demo.onrender.com",
-        default_site="https://portal.example.com",
-    )
+def test_default_is_one_company_called_demo():
+    children = parse_children("", default_site="https://portal.example.com/demo")
     assert children == [
         {
             "schema_name": "demo",
             "name": "Demo",
-            "domain": "demo.onrender.com",
-            "domains": ["demo.onrender.com"],
-            "client_site_url": "https://portal.example.com",
+            "client_site_url": "https://portal.example.com/demo",
+            "domains": ["demo"],
             "look": {"name": "Demo"},
         },
     ]
 
 
-def test_company_can_have_several_frontend_addresses():
+def test_company_can_have_several_paths_and_hosts():
     _seed(
         {
             **EJ,
-            "domain": "",
-            "domains": ["EJ-Admin.example.com", "ej-portal.example.com"],
+            "domains": ["ej", "EJ-Wealth", "ej.example.com"],
         },
     )
 
@@ -141,7 +134,7 @@ def test_company_can_have_several_frontend_addresses():
                 flat=True,
             ),
         )
-    assert {"ej-admin.example.com", "ej-portal.example.com"} <= hosts
+    assert {"ej", "ej-wealth", "ej.example.com"} <= hosts
 
 
 def test_name_and_look_follow_the_env_on_every_run():
@@ -163,15 +156,16 @@ def test_name_and_look_follow_the_env_on_every_run():
 def test_rejects_a_bad_look():
     bad = json.dumps([{**EJ, "look": {"colors": {"primary": "red"}}}])
     with pytest.raises(CommandError, match="bad look"):
-        parse_children(bad, "", "")
+        parse_children(bad, "")
 
 
 def test_rejects_incomplete_or_public_companies():
-    no_domain = {**EJ, "domain": ""}
-    with pytest.raises(CommandError, match="missing domain"):
-        parse_children(json.dumps([no_domain]), "", "")
+    no_site = {**EJ, "client_site_url": ""}
+    with pytest.raises(CommandError, match="missing client_site_url"):
+        parse_children(json.dumps([no_site]), "")
     public = {**EJ, "schema_name": "public"}
     with pytest.raises(CommandError, match="public schema"):
-        parse_children(json.dumps([public]), "", "")
-    with pytest.raises(CommandError, match="RENDER_EXTERNAL_HOSTNAME"):
-        parse_children("", "", "")
+        parse_children(json.dumps([public]), "")
+    bad_slug = {**EJ, "domains": ["ej/admin"]}
+    with pytest.raises(CommandError, match="bad path slugs"):
+        parse_children(json.dumps([bad_slug]), "")

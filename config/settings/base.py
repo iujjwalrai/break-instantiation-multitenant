@@ -73,11 +73,15 @@ TENANT_DOMAIN_MODEL = "children.ChildDomain"
 PUBLIC_SCHEMA_NAME = "public"
 # An unknown host raises 404. It does not fall through to public.
 SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
-# A frontend server that proxies to this API names its company in
-# X-Company-Host (one of that company's addresses) and proves it is ours
-# with this value in X-Company-Key. Empty turns the header off, so only
-# the request host picks the company, as before.
-COMPANY_HOST_SECRET = env("DJANGO_COMPANY_HOST_SECRET", default="")
+# A company is addressed by path: /t/<slug>/api/... where a ChildDomain row
+# holds the slug. Paths without the prefix are the public control store on
+# these hosts. A company host (ej.localhost, the test host) still selects
+# that company at the root, so local dev keeps working.
+TENANT_SUBFOLDER_PREFIX = "t"
+TENANT_PUBLIC_HOSTS = env.list(
+    "DJANGO_TENANT_PUBLIC_HOSTS",
+    default=["localhost", "127.0.0.1"],
+)
 
 # URLS
 # ------------------------------------------------------------------------------
