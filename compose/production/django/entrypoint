@@ -4,13 +4,16 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-if [ -z "${POSTGRES_USER}" ]; then
+if [ -z "${POSTGRES_USER:-}" ]; then
     base_postgres_image_default_user='postgres'
     export POSTGRES_USER="${base_postgres_image_default_user}"
 fi
 
-wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
+# Render passes only DATABASE_URL for a managed database. Nothing to wait on.
+if [ -n "${POSTGRES_HOST:-}" ]; then
+    wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
 
->&2 echo 'PostgreSQL is available'
+    >&2 echo 'PostgreSQL is available'
+fi
 
 exec "$@"
