@@ -1,0 +1,9 @@
+This questionnaire asks factual questions about your early life and environment. These historical data points are used to identify patterns associated with decision-making and responses to stress in adulthood.
+
+Your individual answers are not visible to your {company} advisor or anyone on the {company} team. Your responses are de-identified and are not connected to your name in the behavioral analysis.
+
+The questionnaire generates behavioral insights about patterns that may influence how you respond to financial decisions, investing, uncertainty, and stress. Only these generated insights are shared with your advisor to help support more personalized conversations and guidance.
+
+There are no right or wrong answers. Answer as honestly as possible based on what feels most true for you. If you are unsure between responses, choose the answer your first instinct pulled you toward.
+
+Your progress is saved as you move through the questionnaire, so you can stop and return if needed. Once you move to the next question, previously submitted answers cannot be changed.

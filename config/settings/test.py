@@ -15,6 +15,8 @@ SECRET_KEY = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
+# `.test` covers ej.test, break.test, draft.test, and public.test.
+ALLOWED_HOSTS = ["testserver", ".test", "localhost", "127.0.0.1"]
 
 # PASSWORDS
 # ------------------------------------------------------------------------------
@@ -40,5 +42,10 @@ TEMPLATES[0]["OPTIONS"]["debug"] = True  # type: ignore[index]
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#media-url
 MEDIA_URL = "http://media.testserver/"
+
+# BREAK scoring stays unconfigured in tests. A test that wants a call
+# sets the URL and token itself and mocks the HTTP response.
+BREAK_BACKEND_BASE_URL = ""
+BREAK_SCORING_TOKEN = ""
 # Your stuff...
 # ------------------------------------------------------------------------------

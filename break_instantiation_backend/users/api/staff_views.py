@@ -1,5 +1,3 @@
-from django.contrib.auth import authenticate
-from django.contrib.auth import login
 from django.contrib.auth import logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -12,23 +10,22 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from break_instantiation_backend.audit.models import AdminActivityEventType
+from break_instantiation_backend.audit.models import AuthEventType
+from break_instantiation_backend.audit.services import record_activity_event
+from break_instantiation_backend.audit.services import record_event
 from break_instantiation_backend.users.models import User
 from break_instantiation_backend.users.roles import StaffRole
-from break_instantiation_backend.users.roles import can_sign_in
 from break_instantiation_backend.users.roles import is_backend_admin
-from break_instantiation_backend.users.roles import is_super_admin
+from break_instantiation_backend.users.staff_auth import authenticate_staff
+from break_instantiation_backend.users.staff_auth import login_staff
 
 from .permissions import CanSignIn
-from .permissions import IsSuperAdmin
+from .permissions import IsTenantStaff
 
 
 def staff_payload(user: User) -> dict:
-    if is_backend_admin(user):
-        role = StaffRole.BACKEND_ADMIN
-    elif is_super_admin(user):
-        role = StaffRole.SUPER_ADMIN
-    else:
-        role = user.role
+    role = StaffRole.BACKEND_ADMIN if is_backend_admin(user) else user.role
     return {
         "id": user.id,
         "email": user.email,
@@ -71,19 +68,20 @@ class StaffLoginView(APIView):
     def post(self, request):
         serializer = StaffLoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = authenticate(
-            request,
-            email=serializer.validated_data["email"],
-            password=serializer.validated_data["password"],
-        )
-        if user is None or not can_sign_in(user):
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
+        account, authenticated = authenticate_staff(request, email, password)
+        if account is None or authenticated is None:
+            if account is not None:
+                record_event(AuthEventType.LOGIN_FAILURE, user=account, request=request)
             return Response(
                 {"detail": "Invalid email or password."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        login(request, user)
+        login_staff(request, authenticated)
         get_token(request)
-        return Response(staff_payload(user))
+        record_event(AuthEventType.LOGIN_SUCCESS, user=authenticated, request=request)
+        return Response(staff_payload(authenticated))
 
 
 class StaffLogoutView(APIView):
@@ -91,6 +89,7 @@ class StaffLogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        record_event(AuthEventType.LOGOUT, user=request.user, request=request)
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -103,25 +102,24 @@ class StaffMeView(APIView):
         return Response(staff_payload(request.user))
 
 
+def _staff_row(user: User) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "name": user.name,
+        "role": user.role,
+    }
+
+
 class StaffAdminListCreateView(APIView):
-    """Super admin creates and lists the admins who own clients."""
+    """An admin or backend admin creates and lists the customer admins."""
 
     authentication_classes = [SessionAuthentication]
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsTenantStaff]
 
     def get(self, request):
         admins = User.objects.filter(role=StaffRole.ADMIN).order_by("email")
-        return Response(
-            [
-                {
-                    "id": admin.id,
-                    "email": admin.email,
-                    "name": admin.name,
-                    "role": admin.role,
-                }
-                for admin in admins
-            ],
-        )
+        return Response([_staff_row(admin) for admin in admins])
 
     def post(self, request):
         serializer = StaffAdminCreateSerializer(data=request.data)
@@ -131,5 +129,11 @@ class StaffAdminListCreateView(APIView):
             password=serializer.validated_data["password"],
             name=serializer.validated_data.get("name", ""),
             role=StaffRole.ADMIN,
+        )
+        record_activity_event(
+            AdminActivityEventType.USER_CREATED,
+            actor=request.user,
+            target=user,
+            new_role_name=StaffRole.ADMIN,
         )
         return Response(staff_payload(user), status=status.HTTP_201_CREATED)

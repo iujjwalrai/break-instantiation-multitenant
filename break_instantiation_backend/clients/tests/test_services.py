@@ -5,12 +5,16 @@ from datetime import timedelta
 import pytest
 from django.utils import timezone
 
+from break_instantiation_backend.audit.models import AuthEvent
+from break_instantiation_backend.audit.models import AuthEventType
 from break_instantiation_backend.clients.models import ClientUser
 from break_instantiation_backend.clients.models import MagicLoginToken
+from break_instantiation_backend.clients.services import disable_client_user
 from break_instantiation_backend.clients.services import issue_magic_login
 from break_instantiation_backend.clients.services import issue_portal_invite
 from break_instantiation_backend.clients.services import redeem_magic_login
 from break_instantiation_backend.clients.services import redeem_portal_invite
+from break_instantiation_backend.clients.services import reenable_client_user
 from break_instantiation_backend.clients.services import resolve_client_session
 from break_instantiation_backend.clients.tests.factories import ClientFactory
 from break_instantiation_backend.clients.tests.factories import ClientSessionFactory
@@ -59,6 +63,11 @@ def test_redeem_expired_token():
     with pytest.raises(TokenExpiredError):
         redeem_magic_login(raw)
 
+    assert AuthEvent.objects.filter(
+        client_user=client_user,
+        event_type=AuthEventType.MAGIC_LINK_EXPIRED,
+    ).exists()
+
 
 def test_idle_session_expires():
     session = ClientSessionFactory.create(
@@ -78,6 +87,18 @@ def test_redeem_invite_creates_client_user_and_links_profile():
     _invite, raw = issue_portal_invite(target_client=profile, invited_by=inviter)
 
     client_user, session, raw_session = redeem_portal_invite(raw)
+    assert AuthEvent.objects.filter(
+        user=inviter,
+        event_type=AuthEventType.INVITE_SENT,
+    ).exists()
+    assert AuthEvent.objects.filter(
+        client_user=client_user,
+        event_type=AuthEventType.INVITE_REDEEMED,
+    ).exists()
+    assert AuthEvent.objects.filter(
+        client_user=client_user,
+        event_type=AuthEventType.LOGIN_SUCCESS,
+    ).exists()
 
     profile.refresh_from_db()
     assert client_user.email == "ada@example.com"
@@ -110,3 +131,26 @@ def test_redeem_invite_rejects_email_linked_to_another_client():
 
     profile.refresh_from_db()
     assert profile.client_user_id is None
+
+
+def test_disable_client_user_revokes_sessions_and_records_logout():
+    client_user = ClientUserFactory.create()
+    session = ClientSessionFactory.create(client_user=client_user)
+    token, _raw = issue_magic_login(client_user=client_user)
+
+    disable_client_user(client_user)
+
+    client_user.refresh_from_db()
+    session.refresh_from_db()
+    token.refresh_from_db()
+    assert client_user.disabled_at is not None
+    assert session.revoked_at is not None
+    assert token.expires_at <= timezone.now()
+    assert AuthEvent.objects.filter(
+        client_user=client_user,
+        event_type=AuthEventType.LOGOUT,
+    ).exists()
+
+    reenable_client_user(client_user)
+    client_user.refresh_from_db()
+    assert client_user.disabled_at is None

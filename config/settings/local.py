@@ -13,7 +13,9 @@ SECRET_KEY = env(
     default="p5PzMVM4Y1FuXTbmj9jNqfgKkNCEVAHbDr9XKGLQtPEDVRSNtVlWLuad4ZSGV5eo",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", "127.0.0.1"]  # noqa: S104
+# `.localhost` covers ej.localhost and break.localhost. An unknown host
+# still 404s in tenant middleware; this list only lets Django read the host.
+ALLOWED_HOSTS = [".localhost", "localhost", "127.0.0.1", "0.0.0.0"]  # noqa: S104
 
 # CACHES
 # ------------------------------------------------------------------------------
@@ -74,10 +76,19 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3001",
     "http://127.0.0.1:3001",
+    "http://localhost:3002",
+    "http://127.0.0.1:3002",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:8000",
     "http://127.0.0.1:8000",
+    "http://ej.localhost:3001",
+    "http://ej.localhost:3002",
+    "http://ej.localhost:8000",
+    "http://break.localhost:3001",
+    "http://break.localhost:3002",
+    "http://break.localhost:3004",
+    "http://break.localhost:8000",
 ]
 # Any http(s) origin. A bare "*" cannot be combined with cookies.
 CORS_ALLOW_CREDENTIALS = True

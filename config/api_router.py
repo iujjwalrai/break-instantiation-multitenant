@@ -19,5 +19,10 @@ urlpatterns = [
     ),
     path("clients/", include("break_instantiation_backend.clients.api.urls")),
     path("staff/", include("break_instantiation_backend.users.api.staff_urls")),
+    path("", include("break_instantiation_backend.children.api.urls")),
+    path(
+        "portal/assessment/",
+        include("break_instantiation_backend.questionnaires.api.urls"),
+    ),
     *router.urls,
 ]

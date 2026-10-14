@@ -44,6 +44,9 @@ CACHES = {
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Same proxy as SECURE_PROXY_SSL_HEADER. AuthEvent.ip_address then uses
+# the last X-Forwarded-For hop, which is the address that proxy observed.
+TRUST_X_FORWARDED_FOR_IP = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-ssl-redirect
 SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-secure

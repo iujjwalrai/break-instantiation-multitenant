@@ -64,8 +64,17 @@ else:
     }
 
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["ENGINE"] = "django_tenants.postgresql_backend"
+DATABASE_ROUTERS = ("django_tenants.routers.TenantSyncRouter",)
 # https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-DEFAULT_AUTO_FIELD
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# django-tenants. `public` is the control store. Each child is a schema.
+TENANT_MODEL = "children.Child"
+TENANT_DOMAIN_MODEL = "children.ChildDomain"
+PUBLIC_SCHEMA_NAME = "public"
+# An unknown host raises 404. It does not fall through to public.
+SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
 
 # URLS
 # ------------------------------------------------------------------------------
@@ -76,18 +85,20 @@ WSGI_APPLICATION = "config.wsgi.application"
 
 # APPS
 # ------------------------------------------------------------------------------
-DJANGO_APPS = [
-    "django.contrib.auth",
+# `users` is in both lists, so public and each child have their own
+# `users_user` table. Public rows are backend admins. Child rows are admins.
+# No foreign key crosses schemas.
+SHARED_APPS = [
+    "django_tenants",
+    "break_instantiation_backend.children",
     "django.contrib.contenttypes",
+    "django.contrib.auth",
     "django.contrib.sessions",
     "django.contrib.sites",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    # "django.contrib.humanize", # Handy template tags
     "django.contrib.admin",
     "django.forms",
-]
-THIRD_PARTY_APPS = [
     "crispy_forms",
     "crispy_bootstrap5",
     "allauth",
@@ -99,14 +110,29 @@ THIRD_PARTY_APPS = [
     "rest_framework.authtoken",
     "corsheaders",
     "drf_spectacular",
+    "break_instantiation_backend.users",
 ]
-
-LOCAL_APPS = [
+TENANT_APPS = [
+    "django.contrib.contenttypes",
+    "django.contrib.auth",
+    "django.contrib.sessions",
+    "django.contrib.sites",
+    "django.contrib.admin",
+    "allauth",
+    "allauth.account",
+    "allauth.mfa",
+    "allauth.socialaccount",
+    "rest_framework.authtoken",
     "break_instantiation_backend.users",
     "break_instantiation_backend.clients",
+    "break_instantiation_backend.audit",
+    "break_instantiation_backend.questionnaires",
+    "break_instantiation_backend.results",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
-INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+INSTALLED_APPS = list(SHARED_APPS) + [
+    app for app in TENANT_APPS if app not in SHARED_APPS
+]
 
 # MIGRATIONS
 # ------------------------------------------------------------------------------
@@ -117,7 +143,7 @@ MIGRATION_MODULES = {"sites": "break_instantiation_backend.contrib.sites.migrati
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#authentication-backends
 AUTHENTICATION_BACKENDS = [
-    "django.contrib.auth.backends.ModelBackend",
+    "break_instantiation_backend.users.backends.StaffModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
@@ -151,13 +177,16 @@ AUTH_PASSWORD_VALIDATORS = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#middleware
 MIDDLEWARE = [
+    "break_instantiation_backend.children.middleware.TenantHostMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "break_instantiation_backend.users.middleware.StaffHomeMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "break_instantiation_backend.children.middleware.ChildNotLiveMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -369,14 +398,26 @@ CLIENT_PORTAL_INVITE_TTL = timedelta(days=7)
 CLIENT_SESSION_IDLE_TTL = timedelta(minutes=30)
 SESSION_SLIDE_THRESHOLD = timedelta(seconds=60)
 CLIENT_SESSION_COOKIE_NAME = "client_session"
-# Customer app, not this API and not the staff page that triggered the mail.
-# Local default is the customer dev server. Tenant host comes later.
-CLIENT_PORTAL_FRONTEND_URL = env(
-    "CLIENT_PORTAL_FRONTEND_URL",
-    default="http://localhost:3001",
-)
-CLIENT_EMAIL_WORDMARK = env("CLIENT_EMAIL_WORDMARK", default="Questionnaire")
+# Invite and magic-link mail use Child.client_site_url, stored on public.
+# That string is the customer app, not this API's host and not the request Origin.
+CLIENT_EMAIL_WORDMARK = env("CLIENT_EMAIL_WORDMARK", default="Company X")
 SECURITY_CONTACT_EMAIL = env("SECURITY_CONTACT_EMAIL", default="")
+# Off here, on in production next to SECURE_PROXY_SSL_HEADER. Both trust
+# the reverse proxy: it is the only ingress, so the last X-Forwarded-For
+# hop is the address the proxy saw. Off, a request cannot pick its own IP.
+TRUST_X_FORWARDED_FOR_IP = False
+
+# BREAK scoring. Children do not score on this server. Empty URL or token
+# means a completed assessment stays unscored: no result row is written.
+# The path is the generate-report call BVI already makes into BREAK.
+# `BREAK_SCORING_TOKEN` is a server-side secret. Do not commit one.
+BREAK_BACKEND_BASE_URL = env("BREAK_BACKEND_BASE_URL", default="")
+BREAK_SCORING_TOKEN = env("BREAK_SCORING_TOKEN", default="")
+BREAK_SCORING_PATH = env(
+    "BREAK_SCORING_PATH",
+    default="api/v2/admin/ml-preview/generate-report/",
+)
+BREAK_SCORING_TIMEOUT_SECONDS = env.int("BREAK_SCORING_TIMEOUT_SECONDS", default=30)
 
 # django-cors-headers - https://github.com/adamchainz/django-cors-headers#setup
 CORS_URLS_REGEX = r"^/api/.*$"

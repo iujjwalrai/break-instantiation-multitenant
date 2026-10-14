@@ -1,5 +1,6 @@
 import pytest
 from celery.result import EagerResult
+from django.db import connection
 
 from break_instantiation_backend.users.tasks import get_users_count
 from break_instantiation_backend.users.tests.factories import UserFactory
@@ -12,6 +13,11 @@ def test_user_count(settings):
     batch_size = 3
     UserFactory.create_batch(batch_size)
     settings.CELERY_TASK_ALWAYS_EAGER = True
-    task_result = get_users_count.delay()
+    task_result = get_users_count.delay(connection.schema_name)
     assert isinstance(task_result, EagerResult)
     assert task_result.result == batch_size
+
+
+def test_user_count_refuses_without_a_child():
+    with pytest.raises(RuntimeError, match="child schema"):
+        get_users_count("")

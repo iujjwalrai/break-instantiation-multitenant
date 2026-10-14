@@ -1,15 +1,12 @@
 from rest_framework import serializers
 
 from break_instantiation_backend.clients.models import Client
-from break_instantiation_backend.users.models import User
-from break_instantiation_backend.users.roles import StaffRole
-from break_instantiation_backend.users.roles import is_super_admin
 
 
 class ClientSerializer(serializers.ModelSerializer[Client]):
-    admin_email = serializers.SerializerMethodField()
     has_login = serializers.SerializerMethodField()
     portal_invite_status = serializers.SerializerMethodField()
+    consent_granted_at = serializers.SerializerMethodField()
 
     class Meta:
         model = Client
@@ -17,17 +14,11 @@ class ClientSerializer(serializers.ModelSerializer[Client]):
             "id",
             "full_name",
             "email",
-            "admin",
-            "admin_email",
             "has_login",
             "portal_invite_status",
+            "consent_granted_at",
         ]
         read_only_fields = fields
-
-    def get_admin_email(self, obj: Client) -> str | None:
-        if obj.admin_id is None:
-            return None
-        return obj.admin.email
 
     def get_has_login(self, obj: Client) -> bool:
         return obj.client_user_id is not None
@@ -43,17 +34,22 @@ class ClientSerializer(serializers.ModelSerializer[Client]):
             return None
         return latest.status
 
+    def get_consent_granted_at(self, obj: Client):
+        """When the current consent was first stored.
+
+        `None` when the client has not granted consent, or staff withdrew
+        it. A later reinstate keeps the original `created_at`.
+        """
+        record = getattr(obj, "consent_record", None)
+        if record is None or record.withdrawn_at is not None:
+            return None
+        return record.created_at
+
 
 class ClientCreateSerializer(serializers.ModelSerializer[Client]):
-    admin = serializers.PrimaryKeyRelatedField(
-        queryset=User.objects.filter(role=StaffRole.ADMIN),
-        required=False,
-        allow_null=True,
-    )
-
     class Meta:
         model = Client
-        fields = ["full_name", "email", "admin"]
+        fields = ["full_name", "email"]
 
     def validate_email(self, value: str) -> str:
         if Client.objects.filter(email__iexact=value).exists():
@@ -61,12 +57,19 @@ class ClientCreateSerializer(serializers.ModelSerializer[Client]):
             raise serializers.ValidationError(msg)
         return value
 
-    def validate(self, attrs):
-        request = self.context["request"]
-        if is_super_admin(request.user):
-            return attrs
-        if "admin" in self.initial_data:
-            msg = "Only a super admin assigns the responsible admin."
-            raise serializers.ValidationError({"admin": msg})
-        attrs["admin"] = request.user
-        return attrs
+
+class ClientUpdateSerializer(serializers.ModelSerializer[Client]):
+    """Name and email a staff member can change after the row exists."""
+
+    class Meta:
+        model = Client
+        fields = ["full_name", "email"]
+
+    def validate_email(self, value: str) -> str:
+        existing = Client.objects.filter(email__iexact=value)
+        if self.instance is not None:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            msg = "A client with this email already exists."
+            raise serializers.ValidationError(msg)
+        return value

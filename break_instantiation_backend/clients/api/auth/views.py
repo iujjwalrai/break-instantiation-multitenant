@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 
+from break_instantiation_backend.children.schema import enqueue_child_task
 from break_instantiation_backend.clients.authentication import (
     ClientSessionAuthentication,
 )
@@ -89,7 +90,10 @@ class PortalInviteRedeemView(APIView):
         token = serializer.validated_data["token"]
 
         try:
-            client_user, _session, raw_session_token = redeem_portal_invite(token)
+            client_user, _session, raw_session_token = redeem_portal_invite(
+                token,
+                request=request,
+            )
         except (TokenInvalidError, TokenExpiredError) as exc:
             return _token_error_response(exc)
 
@@ -122,8 +126,11 @@ class MagicLoginRequestView(APIView):
             disabled_at__isnull=True,
         ).first()
         if client_user is not None:
-            _token, raw_token = issue_magic_login(client_user=client_user)
-            send_magic_login_email.delay(client_user.email, raw_token)
+            _token, raw_token = issue_magic_login(
+                client_user=client_user,
+                request=request,
+            )
+            enqueue_child_task(send_magic_login_email, client_user.email, raw_token)
 
         return Response(_GENERIC_MAGIC_LOGIN_RESPONSE)
 
@@ -137,7 +144,10 @@ class MagicLoginRedeemView(APIView):
         token = serializer.validated_data["token"]
 
         try:
-            client_user, _session, raw_session_token = redeem_magic_login(token)
+            client_user, _session, raw_session_token = redeem_magic_login(
+                token,
+                request=request,
+            )
         except (TokenInvalidError, TokenExpiredError) as exc:
             return _token_error_response(exc)
 
@@ -155,7 +165,7 @@ class PortalLogoutView(APIView):
         assert raw_token is not None, (
             "authentication requires this cookie to be present"
         )
-        revoke_client_session(raw_token)
+        revoke_client_session(raw_token, request=request)
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie(settings.CLIENT_SESSION_COOKIE_NAME)
         return response
@@ -167,7 +177,7 @@ class PortalLogoutAllView(APIView):
 
     def post(self, request: Request) -> Response:
         assert isinstance(request.user, ClientUser)
-        revoke_all_client_sessions(request.user)
+        revoke_all_client_sessions(request.user, request=request)
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie(settings.CLIENT_SESSION_COOKIE_NAME)
         return response
