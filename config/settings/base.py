@@ -73,6 +73,11 @@ TENANT_DOMAIN_MODEL = "children.ChildDomain"
 PUBLIC_SCHEMA_NAME = "public"
 # An unknown host raises 404. It does not fall through to public.
 SHOW_PUBLIC_IF_NO_TENANT_FOUND = False
+# A frontend server that proxies to this API names its company in
+# X-Company-Host (one of that company's addresses) and proves it is ours
+# with this value in X-Company-Key. Empty turns the header off, so only
+# the request host picks the company, as before.
+COMPANY_HOST_SECRET = env("DJANGO_COMPANY_HOST_SECRET", default="")
 
 # URLS
 # ------------------------------------------------------------------------------

@@ -21,11 +21,10 @@ ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=[])
 RENDER_EXTERNAL_HOSTNAME = env("RENDER_EXTERNAL_HOSTNAME", default="")
 if RENDER_EXTERNAL_HOSTNAME:
     ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-ALLOWED_HOSTS += [
-    child["domain"]
-    for child in env.json("DJANGO_DEMO_CHILDREN", default=[])
-    if child.get("domain")
-]
+for _child in env.json("DJANGO_DEMO_CHILDREN", default=[]):
+    ALLOWED_HOSTS += _child.get("domains") or (
+        [_child["domain"]] if _child.get("domain") else []
+    )
 
 # DATABASES
 # ------------------------------------------------------------------------------

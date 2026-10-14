@@ -38,3 +38,18 @@ def test_mail_refuses_a_company_without_a_client_site(mailoutbox):
         send_portal_invite_email("draft", "ada@draft.test", "draft-invite")
 
     assert mailoutbox == []
+
+
+def test_mail_names_the_company_not_the_fallback(mailoutbox, settings):
+    settings.CLIENT_EMAIL_WORDMARK = "Fallback Brand"
+    with schema_context("public"):
+        Child.objects.filter(schema_name="ej").update(
+            client_site_url="http://ej.localhost:3001",
+            look={"name": "EJ Wealth"},
+        )
+
+    send_portal_invite_email("ej", "ada@ej.test", "ej-invite")
+
+    (message,) = mailoutbox
+    assert "EJ Wealth" in message.body
+    assert "Fallback Brand" not in message.body

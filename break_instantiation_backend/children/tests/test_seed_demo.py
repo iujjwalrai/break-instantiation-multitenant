@@ -118,9 +118,52 @@ def test_default_is_one_company_on_the_render_host():
             "schema_name": "demo",
             "name": "Demo",
             "domain": "demo.onrender.com",
+            "domains": ["demo.onrender.com"],
             "client_site_url": "https://portal.example.com",
+            "look": {"name": "Demo"},
         },
     ]
+
+
+def test_company_can_have_several_frontend_addresses():
+    _seed(
+        {
+            **EJ,
+            "domain": "",
+            "domains": ["EJ-Admin.example.com", "ej-portal.example.com"],
+        },
+    )
+
+    with schema_context("public"):
+        hosts = set(
+            ChildDomain.objects.filter(tenant__schema_name="ej").values_list(
+                "domain",
+                flat=True,
+            ),
+        )
+    assert {"ej-admin.example.com", "ej-portal.example.com"} <= hosts
+
+
+def test_name_and_look_follow_the_env_on_every_run():
+    _seed({**EJ, "look": {"colors": {"primary": "#1B4D3E"}}})
+    _seed(
+        {
+            **EJ,
+            "name": "EJ Wealth",
+            "look": {"logo": "https://cdn.example.com/ej.svg"},
+        },
+    )
+
+    with schema_context("public"):
+        ej = Child.objects.get(schema_name="ej")
+    assert ej.name == "EJ Wealth"
+    assert ej.look == {"name": "EJ Wealth", "logo": "https://cdn.example.com/ej.svg"}
+
+
+def test_rejects_a_bad_look():
+    bad = json.dumps([{**EJ, "look": {"colors": {"primary": "red"}}}])
+    with pytest.raises(CommandError, match="bad look"):
+        parse_children(bad, "", "")
 
 
 def test_rejects_incomplete_or_public_companies():

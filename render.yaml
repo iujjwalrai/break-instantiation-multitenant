@@ -28,17 +28,26 @@ services:
       # URL. Magic login and invite links point here.
       - key: DJANGO_DEMO_CLIENT_SITE_URL
         sync: false
-      # Several companies instead: a JSON list, each with its own API host
-      # pointed at this service. Overrides the one-company default.
-      # [{"schema_name": "ej", "name": "EJ", "domain": "ej-api.example.com",
-      #   "client_site_url": "https://ej-portal.vercel.app"}]
+      # Several companies instead: a JSON list. `domains` are the company's
+      # frontend hosts (sent in X-Company-Host) and/or API hosts. Overrides
+      # the one-company default. `look` is optional branding.
+      # [{"schema_name": "ej", "name": "EJ",
+      #   "domains": ["ej-admin.vercel.app", "ej-portal.vercel.app"],
+      #   "client_site_url": "https://ej-portal.vercel.app",
+      #   "admin_email": "admin@ej.example.com",
+      #   "look": {"logo": "", "colors": {"primary": "#1B4D3E"}}}]
       - key: DJANGO_DEMO_CHILDREN
         sync: false
+      # Shared with both Vercel apps as COMPANY_HOST_SECRET. Lets them name
+      # the company in X-Company-Host. Blank turns the header off.
+      - key: DJANGO_COMPANY_HOST_SECRET
+        generateValue: true
       # Comma separated. The admin's CLIENT_PORTAL_ORIGIN and portal's APP_URL.
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         sync: false
-      # Brevo SMTP: smtp+tls://<login>:<smtp key>@smtp-relay.brevo.com:587
-      # URL-encode special characters. Blank logs mail instead of sending.
+      # Brevo SMTP: smtp+tls://<login>:<smtp key>@smtp-relay.brevo.com:2525
+      # Port 2525: the free plan blocks 25, 465, and 587. URL-encode special
+      # characters. Blank logs mail instead of sending.
       - key: DJANGO_EMAIL_URL
         sync: false
       # A sender verified in Brevo, e.g. Questionnaire <noreply@example.com>

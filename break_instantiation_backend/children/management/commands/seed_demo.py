@@ -1,9 +1,9 @@
 """Demo companies and logins for the Render deploy. Safe to re-run.
 
 The free instance reboots on every wake, so this runs on every boot.
-Passwords and each company's client site follow the env vars every run.
-Companies, clients, and consent wording are only created when missing, so
-whatever the demo changed survives a restart.
+Passwords and each company's name, look, client site, and addresses follow
+the env vars every run. Clients and consent wording are only created when
+missing, so whatever the demo changed survives a restart.
 """
 
 import json
@@ -15,6 +15,7 @@ from django.core.management.base import CommandError
 from django_tenants.utils import get_public_schema_name
 from django_tenants.utils import schema_context
 
+from break_instantiation_backend.children.look import validate_look
 from break_instantiation_backend.children.management.commands.seed_local_children import (  # noqa: E501
     _ensure_consent,
 )
@@ -38,8 +39,10 @@ CLIENTS = (
 def parse_children(raw: str, default_domain: str, default_site: str) -> list[dict]:
     """`DJANGO_DEMO_CHILDREN` JSON, or one company on the Render host.
 
-    Each entry: schema_name, name, domain (the API host the frontends call),
-    client_site_url (the customer portal), and optional admin_email.
+    Each entry: schema_name, name, client_site_url (the customer portal),
+    and its addresses as `domains` (a list) or `domain` (one). An address
+    is an API host or a frontend host that sends X-Company-Host. Optional:
+    admin_email, and look (name, logo, favicon, title, description, colors).
     """
     if raw.strip():
         try:
@@ -60,16 +63,31 @@ def parse_children(raw: str, default_domain: str, default_site: str) -> list[dic
         msg = "Set DJANGO_DEMO_CHILDREN, or RENDER_EXTERNAL_HOSTNAME for one company."
         raise CommandError(msg)
 
-    required = ("schema_name", "name", "domain", "client_site_url")
+    required = ("schema_name", "name", "client_site_url")
     for child in children:
-        missing = [key for key in required if not child.get(key)]
+        child["domains"] = _domains(child)
+        missing = [key for key in (*required, "domains") if not child.get(key)]
         if missing:
             msg = f"Demo company {child} is missing {', '.join(missing)}."
             raise CommandError(msg)
         if child["schema_name"] == get_public_schema_name():
             msg = "A demo company cannot use the public schema."
             raise CommandError(msg)
+        look = child.get("look") or {}
+        errors = validate_look(look)
+        if errors:
+            msg = f"Demo company {child['name']} has a bad look: {' '.join(errors)}"
+            raise CommandError(msg)
+        child["look"] = {"name": child["name"], **look}
     return children
+
+
+def _domains(child: dict) -> list[str]:
+    raw = child.get("domains") or ([child["domain"]] if child.get("domain") else [])
+    if not isinstance(raw, list) or not all(isinstance(d, str) for d in raw):
+        msg = f"Demo company {child.get('name')} domains must be a list of hosts."
+        raise CommandError(msg)
+    return [d.strip().lower() for d in raw if d.strip()]
 
 
 class Command(BaseCommand):
@@ -109,7 +127,7 @@ class Command(BaseCommand):
         for spec in children:
             _ensure_child(spec, password)
             self.stdout.write(
-                f"{spec['name']}: API host {spec['domain']}, "
+                f"{spec['name']}: addresses {', '.join(spec['domains'])}, "
                 f"admin {_admin_email(spec)}",
             )
         self.stdout.write(
@@ -136,53 +154,69 @@ def _ensure_backend_admin(email: str, password: str) -> None:
 
 def _ensure_child(spec: dict, password: str) -> None:
     with schema_context(get_public_schema_name()):
-        child = Child.objects.filter(schema_name=spec["schema_name"]).first()
-        if child is None:
-            # Saving creates and migrates the schema.
-            child = Child(
-                schema_name=spec["schema_name"],
-                name=spec["name"],
-                status=ChildStatus.LIVE,
-                client_site_url=spec["client_site_url"],
-                look={"name": spec["name"]},
-            )
-            child.save()
-        elif child.client_site_url != spec["client_site_url"]:
-            child.client_site_url = spec["client_site_url"]
-            child.save(update_fields=["client_site_url"])
+        child = _ensure_company(spec)
+        _ensure_domains(child, spec["domains"])
+    with schema_context(spec["schema_name"]):
+        _ensure_admin(_admin_email(spec), password)
+        _ensure_clients()
+        # Consent wording is immutable per version. Seed it once per company.
+        if not ConsentTemplate.objects.exists():
+            _ensure_consent(spec["name"])
 
-        domain = ChildDomain.objects.filter(domain=spec["domain"]).first()
+
+def _ensure_company(spec: dict) -> Child:
+    wanted = {
+        "name": spec["name"],
+        "client_site_url": spec["client_site_url"],
+        "look": spec["look"],
+    }
+    child = Child.objects.filter(schema_name=spec["schema_name"]).first()
+    if child is None:
+        # Saving creates and migrates the schema.
+        child = Child(
+            schema_name=spec["schema_name"],
+            status=ChildStatus.LIVE,
+            **wanted,
+        )
+        child.save()
+        return child
+    changed = [key for key, value in wanted.items() if getattr(child, key) != value]
+    if changed:
+        for key in changed:
+            setattr(child, key, wanted[key])
+        child.save(update_fields=changed)
+    return child
+
+
+def _ensure_domains(child: Child, hosts: list[str]) -> None:
+    for host in hosts:
+        domain = ChildDomain.objects.filter(domain=host).first()
         if domain is None:
             ChildDomain.objects.create(
-                domain=spec["domain"],
+                domain=host,
                 tenant=child,
                 is_primary=not child.domains.exists(),
             )
         elif domain.tenant_id != child.pk:
-            msg = f"{spec['domain']} already belongs to another company."
+            msg = f"{host} already belongs to another company."
             raise CommandError(msg)
 
-    with schema_context(spec["schema_name"]):
-        admin = User.objects.filter(email__iexact=_admin_email(spec)).first()
-        if admin is None:
-            User.objects.create_user(_admin_email(spec), password, role=StaffRole.ADMIN)
-        else:
-            admin.role = StaffRole.ADMIN
-            admin.set_password(password)
-            admin.save()
 
-        for full_name, email, has_login in CLIENTS:
-            if Client.objects.filter(email__iexact=email).exists():
-                continue
-            client_user = None
-            if has_login:
-                client_user, _created = ClientUser.objects.get_or_create(email=email)
-            Client.objects.create(
-                full_name=full_name,
-                email=email,
-                client_user=client_user,
-            )
+def _ensure_admin(email: str, password: str) -> None:
+    admin = User.objects.filter(email__iexact=email).first()
+    if admin is None:
+        User.objects.create_user(email, password, role=StaffRole.ADMIN)
+        return
+    admin.role = StaffRole.ADMIN
+    admin.set_password(password)
+    admin.save()
 
-        # Consent wording is immutable per version. Seed it once per company.
-        if not ConsentTemplate.objects.exists():
-            _ensure_consent(spec["name"])
+
+def _ensure_clients() -> None:
+    for full_name, email, has_login in CLIENTS:
+        if Client.objects.filter(email__iexact=email).exists():
+            continue
+        client_user = None
+        if has_login:
+            client_user, _created = ClientUser.objects.get_or_create(email=email)
+        Client.objects.create(full_name=full_name, email=email, client_user=client_user)

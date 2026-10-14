@@ -1,9 +1,12 @@
+import hmac
+
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.http import Http404
 from django_tenants.middleware.main import TenantMainMiddleware
 from django_tenants.utils import get_public_schema_name
+from django_tenants.utils import remove_www
 
 from break_instantiation_backend.children.models import ChildStatus
 from break_instantiation_backend.users.roles import can_sign_in
@@ -24,11 +27,44 @@ class PublicControl:
     schema_name = "public"
 
 
+_PUBLIC_HOSTS = {"localhost", "127.0.0.1"}
+COMPANY_HOST_HEADER = "HTTP_X_COMPANY_HOST"
+COMPANY_KEY_HEADER = "HTTP_X_COMPANY_KEY"
+
+
+def _company_host(request) -> str | None:
+    """The company address a trusted frontend named, or None for the host.
+
+    One API host can then serve every company: each frontend sends its own
+    address, which is stored as one of that company's domains. The header
+    counts only with the shared key, and it can never select public.
+    """
+    named = request.META.get(COMPANY_HOST_HEADER, "")
+    secret = settings.COMPANY_HOST_SECRET
+    if not named or not secret:
+        return None
+    key = request.META.get(COMPANY_KEY_HEADER, "")
+    if not hmac.compare_digest(key.encode(), secret.encode()):
+        msg = "Unknown frontend."
+        raise PermissionDenied(msg)
+    hostname = remove_www(named.strip().lower().split(":")[0])
+    if not hostname or hostname in _PUBLIC_HOSTS:
+        msg = "No company for that address."
+        raise Http404(msg)
+    return hostname
+
+
 class TenantHostMiddleware(TenantMainMiddleware):
-    """`localhost` is the public admin. Any other host must be a child address."""
+    """`localhost` is the public admin. Any other host must be a child address.
+
+    A frontend server may name the company in X-Company-Host instead.
+    """
+
+    def hostname_from_request(self, request):
+        return _company_host(request) or super().hostname_from_request(request)
 
     def get_tenant(self, domain_model, hostname):
-        if hostname in {"localhost", "127.0.0.1"}:
+        if hostname in _PUBLIC_HOSTS:
             return PublicControl()
         return super().get_tenant(domain_model, hostname)
 

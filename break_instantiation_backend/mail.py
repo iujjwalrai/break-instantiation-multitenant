@@ -13,6 +13,9 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
+from break_instantiation_backend.children.models import Child
+from break_instantiation_backend.children.schema import current_look
+
 if typing.TYPE_CHECKING:
     from datetime import timedelta
 
@@ -34,6 +37,15 @@ def humanize_ttl(delta: timedelta) -> str:
     return f"{total} second" if total == 1 else f"{total} seconds"
 
 
+def email_wordmark() -> str:
+    """The company's own name inside a child. The setting is the fallback."""
+    try:
+        name = current_look()["name"]
+    except RuntimeError, Child.DoesNotExist:
+        name = ""
+    return name or settings.CLIENT_EMAIL_WORDMARK
+
+
 def build_action_link(*, base_url: str, path: str, raw_token: str) -> str:
     """SPA link. Token is query-encoded so `+` or `/` cannot break it."""
     query = urlencode({"token": raw_token})
@@ -53,7 +65,7 @@ def send_action_email(
         "link": link,
         "expires_in_display": humanize_ttl(expires_in),
         "security_contact": settings.SECURITY_CONTACT_EMAIL,
-        "wordmark": settings.CLIENT_EMAIL_WORDMARK,
+        "wordmark": email_wordmark(),
     }
     message = EmailMultiAlternatives(
         subject=subject,

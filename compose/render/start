@@ -9,8 +9,9 @@ python /app/manage.py migrate --noinput
 python /app/manage.py createcachetable
 python /app/manage.py collectstatic --noinput
 
+# A bad seed value is logged, not fatal, so the API still comes up.
 if [ -n "${DJANGO_DEMO_PASSWORD:-}" ]; then
-    python /app/manage.py seed_demo
+    python /app/manage.py seed_demo || >&2 echo 'seed_demo failed; starting anyway'
 fi
 
 exec gunicorn config.asgi --bind "0.0.0.0:${PORT:-5000}" --chdir=/app -k uvicorn_worker.UvicornWorker
