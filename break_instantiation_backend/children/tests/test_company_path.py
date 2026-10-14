@@ -114,3 +114,23 @@ def test_company_list_is_not_served_inside_a_company():
     response = HttpClient(headers={"host": "localhost"}).get("/t/ej/api/companies/")
 
     assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_company_cookie_wins_over_a_public_cookie_of_the_same_name():
+    # A browser signed in to /admin/ and /t/break/ sends both sessionids to
+    # /t/break/, the longer path first. Django keeps the last by default.
+    with schema_context("break"):
+        User.objects.create_user("admin@break.test", PASSWORD, role=StaffRole.ADMIN)
+    login = HttpClient(headers={"host": "localhost"}).post(
+        "/t/break/api/staff/login/",
+        data=json.dumps({"email": "admin@break.test", "password": PASSWORD}),
+        content_type="application/json",
+    )
+    company_session = login.cookies["sessionid"].value
+    both = f"sessionid={company_session}; sessionid=public-session-value"
+
+    response = HttpClient(headers={"host": "localhost", "cookie": both}).get(
+        "/t/break/api/staff/me/",
+    )
+
+    assert response.status_code == HTTPStatus.OK

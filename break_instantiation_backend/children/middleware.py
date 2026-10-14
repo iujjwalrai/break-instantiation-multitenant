@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied
 from django.db import connection
 from django.http import Http404
 from django.http import HttpResponseNotFound
+from django.http.cookie import parse_cookie
 from django.urls import URLResolver
 from django.urls import set_urlconf
 from django.utils.module_loading import import_string
@@ -132,6 +133,11 @@ class TenantHostMiddleware(TenantMainMiddleware):
             tenant.domain_subfolder = slug
             request.urlconf = company_urlconf(slug)
             set_urlconf(request.urlconf)
+            # A browser signed in at / and at /t/<slug>/ sends both cookies of
+            # a name here, the longer path first. Django keeps the last, the
+            # public one, so read the first instead: this company's cookie.
+            header = request.META.get("HTTP_COOKIE", "")
+            request.COOKIES = parse_cookie(";".join(reversed(header.split(";"))))
         elif hostname in settings.TENANT_PUBLIC_HOSTS:
             tenant = PublicControl()
         else:
